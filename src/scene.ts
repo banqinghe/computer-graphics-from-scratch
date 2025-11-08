@@ -5,12 +5,14 @@ export class Sphere {
     radius: number;
     color: vec3;
     specular: number;
+    reflective: number;
 
-    constructor(center: vec3, radius: number, color: vec3, specular: number) {
+    constructor(center: vec3, radius: number, color: vec3, specular: number, reflective: number) {
         this.center = center;
         this.radius = radius;
         this.color = color;
         this.specular = specular;
+        this.reflective = reflective;
     }
 }
 
@@ -53,24 +55,28 @@ export const scene = {
             1,
             vec3.fromValues(255, 0, 0), // Red
             500, // Shiny
+            0.2, // A bit reflective
         ),
         new Sphere(
             vec3.fromValues(2, 0, 4),
             1,
             vec3.fromValues(0, 0, 255), // Blue
             500, // Shiny
+            0.3, // A bit more reflective
         ),
         new Sphere(
             vec3.fromValues(-2, 0, 4),
             1,
             vec3.fromValues(0, 255, 0), // Green
             10, // Less shiny
+            0.4, // Even more reflective
         ),
         new Sphere(
             vec3.fromValues(0, -5001, 0),
             5000,
             vec3.fromValues(255, 255, 0), // Yellow
             1000, // Very shiny
+            0.5, // Half reflective
         ),
     ],
     lights: [
@@ -78,5 +84,5 @@ export const scene = {
         new PointLight(0.6, vec3.fromValues(2, 1, 0)),
         new DirectionalLight(0.2, vec3.fromValues(1, 4, 4)),
     ],
-    backgroundColor: vec3.fromValues(255, 255, 255),
+    backgroundColor: vec3.fromValues(0, 0, 0),
 };

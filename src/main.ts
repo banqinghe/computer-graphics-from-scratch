@@ -4,6 +4,8 @@ import { AmbientLight, PointLight, scene, Sphere } from './scene';
 
 const cameraPosition = vec3.fromValues(0, 0, 0);
 
+const EPSILON = 0.05;
+
 /**
  * viewport: width = 1, height = 1, distance = 1
  */
@@ -80,22 +82,49 @@ function getClosestIntersection(origin: vec3, direction: vec3, tMin: number, tMa
     return [closestSphere, closestT] as const;
 }
 
-/** Trace a ray from the camera into the scene, get the color from the ray */
-function traceRay(cameraPosition: vec3, direction: vec3, minT: number, maxT: number): vec3 {
-    const [closestSphere, closestT] = getClosestIntersection(cameraPosition, direction, minT, maxT);
+/** 给定起点追踪光线击中的物体, 返回对应的颜色 */
+function traceRay(startPoint: vec3, direction: vec3, minT: number, maxT: number, recursionDepth: number): vec3 {
+    const [closestSphere, closestT] = getClosestIntersection(startPoint, direction, minT, maxT);
     if (closestSphere === null) {
         return scene.backgroundColor;
     }
     // 计算交点位置
     const intersectionPoint = vec3.create();
     // P = O + tD
-    vec3.scaleAndAdd(intersectionPoint, cameraPosition, direction, closestT);
+    vec3.scaleAndAdd(intersectionPoint, startPoint, direction, closestT);
     // 计算表面法线
     const normal = vec3.create();
     vec3.subtract(normal, intersectionPoint, closestSphere.center);
     vec3.normalize(normal, normal);
-    // 计算光照强度, 并返回颜色
-    return vec3.scale(vec3.create(), closestSphere.color, computeLighting(intersectionPoint, normal, closestSphere.specular));
+
+    // computeLighting 第三个参数为指向视线的方向, direction 向量是出发点指向物体, 因此视线方向为 -direction
+    const view = vec3.negate(vec3.create(), direction);
+
+    // 计算高光和阴影
+    const localColor = vec3.scale(vec3.create(), closestSphere.color, computeLighting(intersectionPoint, normal, view, closestSphere.specular));
+
+    // 递归计算反射光, 达到递归次数上限或击中物体无反光时停止
+    if (recursionDepth <= 0 || closestSphere.reflective <= 0) {
+        return localColor;
+    }
+
+    const reflectedRay = reflectRay(view, normal);
+    const reflectedColor = traceRay(intersectionPoint, reflectedRay, EPSILON, Infinity, recursionDepth - 1);
+
+    // 最终颜色为局部颜色和反射颜色的加权和 $$C = (1 - k_r)C_{local} + k_r C_{reflected}$$
+    return vec3.add(
+        vec3.create(),
+        vec3.scale(vec3.create(), localColor, 1 - closestSphere.reflective),
+        vec3.scale(vec3.create(), reflectedColor, closestSphere.reflective),
+    );
+}
+
+/** 计算理想反射光 $$\vec{R} = 2\vec{N}(\vec{N}\cdot\vec{L}) - \vec{L}$$ */
+function reflectRay(ray: vec3, normal: vec3): vec3 {
+    const r = vec3.create();
+    vec3.scale(r, normal, 2 * vec3.dot(normal, ray));
+    vec3.subtract(r, r, ray);
+    return r;
 }
 
 /*
@@ -157,7 +186,7 @@ I_P = I_A + \sum_{i=1}^{n} \left[
 $$
 
 */
-function computeLighting(point: vec3, normal: vec3, specular: number): number {
+function computeLighting(point: vec3, normal: vec3, view: vec3, specular: number): number {
     let intensity = 0;
     for (const light of scene.lights) {
         if (light instanceof AmbientLight) {
@@ -184,11 +213,13 @@ function computeLighting(point: vec3, normal: vec3, specular: number): number {
             //      也就是说 l 的长度就是光线从 point 到光源的距离, 而光线方程是 P = O + tD, 当 t = 1 的时候,
             //      P = O + D, 也就是光线走完了从 point 到光源的距离, 因此到达了光源位置)
             //
-            //   Q2: 为什么要把 tMin 设为 0.001?
+            //   Q2: 为什么要把 tMin 设为 EPSILON ?
             //   A: 因为如果把 tMin 设为 0 的话, 光线起点 point 恰好在物体表面, 这时计算交点会检测到与自身的交点,
             //      导致错误地认为该点在阴影中. 因此我们把 tMin 设为一个很小的值, 避免这种情况发生.
+            //      (注：在书作者的代码里 EPSILON 是 0.001，我使用的是 gl-matrix 做向量计算，底层是使用
+            //      Float32Array, 精度低一些，所以我把 EPSILON 设的稍微大了一些)
 
-            const [shadowSphere] = getClosestIntersection(point, l, 0.001, shadowMaxT);
+            const [shadowSphere] = getClosestIntersection(point, l, EPSILON, shadowMaxT);
             if (shadowSphere !== null) {
                 continue;
             }
@@ -209,23 +240,17 @@ function computeLighting(point: vec3, normal: vec3, specular: number): number {
                 continue;
             }
 
-            // 计算理想反射光 $$\vec{R} = 2\vec{N}(\vec{N}\cdot\vec{L}) - \vec{L}$$
-            const r = vec3.create();
-            vec3.scale(r, normal, 2 * vec3.dot(normal, l));
-            vec3.subtract(r, r, l);
+            const r = reflectRay(l, normal);
 
-            // 计算视线方向 $$\vec{V}$$
-            const v = vec3.create();
-            vec3.subtract(v, cameraPosition, point);
-
+            // 计算视线方向为 $$\vec{V}$$
             // 计算 $$\vec{R}\cdot\vec{V}$$, 如果夹脚小于 90 度, 则视线方向上有反射光
-            const rDotV = vec3.dot(r, v);
+            const rDotV = vec3.dot(r, view);
             if (rDotV > 0) {
                 //
                 // $$I_i \left( \frac{\vec{R}\cdot\vec{V}}{\left| \vec{R} \right| \left| \vec{V} \right|} \right)^k$$
                 //
                 intensity += light.intensity * Math.pow(
-                    rDotV / (vec3.length(r) * vec3.length(v)),
+                    rDotV / (vec3.length(r) * vec3.length(view)),
                     specular,
                 );
             }
@@ -239,7 +264,7 @@ function main() {
         for (let y = -canvasHeight / 2; y < canvasHeight / 2; y++) {
             const direction = canvasToViewport(x, y);
             // minT = 1, 我们只关注 viewport 之后的交点
-            const color = traceRay(cameraPosition, direction, 1, Infinity);
+            const color = traceRay(cameraPosition, direction, 1, Infinity, 3);
             // canvas 的绘制坐标系中, (0, 0) 在左上角, 所以这里需要做一次变换
             putPixel(x + canvasWidth / 2, -y + canvasHeight / 2, color);
         }
