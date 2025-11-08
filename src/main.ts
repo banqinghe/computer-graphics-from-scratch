@@ -1,8 +1,22 @@
-import { vec3 } from 'gl-matrix';
+import { mat4, vec3 } from 'gl-matrix';
 import { canvasWidth, canvasHeight, putPixel, updateCanvas } from './canvas';
 import { AmbientLight, PointLight, scene, Sphere } from './scene';
 
-const cameraPosition = vec3.fromValues(0, 0, 0);
+const camera = {
+    position: vec3.fromValues(0, 0, 0),
+    rotationX: 0,
+    rotationY: 0,
+    rotationZ: 0, // 新增
+};
+
+function getCameraRotationMatrix() {
+    // 先绕 X，再绕 Y，再绕 Z
+    const rotX = mat4.fromXRotation(mat4.create(), camera.rotationX);
+    const rotY = mat4.fromYRotation(mat4.create(), camera.rotationY);
+    const rotZ = mat4.fromZRotation(mat4.create(), camera.rotationZ);
+    // 注意顺序：Z * Y * X
+    return mat4.mul(mat4.create(), rotZ, mat4.mul(mat4.create(), rotY, rotX));
+}
 
 const EPSILON = 0.05;
 
@@ -260,16 +274,53 @@ function computeLighting(point: vec3, normal: vec3, view: vec3, specular: number
 }
 
 function main() {
+    render();
+
+    // 旋转步长
+    const ROT_STEP = Math.PI / 16;
+
+    // 绑定按钮事件
+    document.getElementById('up-btn')!.addEventListener('click', () => {
+        rotateCamera('x', -ROT_STEP);
+    });
+    document.getElementById('down-btn')!.addEventListener('click', () => {
+        rotateCamera('x', ROT_STEP);
+    });
+    document.getElementById('left-btn')!.addEventListener('click', () => {
+        rotateCamera('y', -ROT_STEP);
+    });
+    document.getElementById('right-btn')!.addEventListener('click', () => {
+        rotateCamera('y', ROT_STEP);
+    });
+    document.getElementById('rotate-right-btn')!.addEventListener('click', () => {
+        rotateCamera('z', ROT_STEP);
+    });
+}
+
+function render() {
+    const startTime = performance.now();
+    const rotation = getCameraRotationMatrix();
     for (let x = -canvasWidth / 2; x < canvasWidth / 2; x++) {
         for (let y = -canvasHeight / 2; y < canvasHeight / 2; y++) {
-            const direction = canvasToViewport(x, y);
-            // minT = 1, 我们只关注 viewport 之后的交点
-            const color = traceRay(cameraPosition, direction, 1, Infinity, 3);
-            // canvas 的绘制坐标系中, (0, 0) 在左上角, 所以这里需要做一次变换
+            const direction = vec3.transformMat4(vec3.create(), canvasToViewport(x, y), rotation);
+            const color = traceRay(camera.position, direction, 1, Infinity, 3);
             putPixel(x + canvasWidth / 2, -y + canvasHeight / 2, color);
         }
     }
     updateCanvas();
+    document.getElementById('info')!.textContent = `Render time: ${(performance.now() - startTime).toFixed(2)}ms`;
+}
+
+// 旋转相机并重新渲染
+function rotateCamera(axis: 'x' | 'y' | 'z', delta: number) {
+    if (axis === 'x') {
+        camera.rotationX += delta;
+    } else if (axis === 'y') {
+        camera.rotationY += delta;
+    } else {
+        camera.rotationZ += delta;
+    }
+    render();
 }
 
 main();

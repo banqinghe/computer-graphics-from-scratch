@@ -84,5 +84,5 @@ export const scene = {
         new PointLight(0.6, vec3.fromValues(2, 1, 0)),
         new DirectionalLight(0.2, vec3.fromValues(1, 4, 4)),
     ],
-    backgroundColor: vec3.fromValues(0, 0, 0),
+    backgroundColor: vec3.fromValues(211, 227, 253),
 };

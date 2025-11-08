@@ -5,10 +5,64 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>computer-graphics-from-scratch</title>
+    <style>
+        #canvas {
+            display: block;
+            margin: 0 auto;
+        }
+
+        #info {
+            text-align: center;
+        }
+
+        .operation {
+            width: 100px;
+            margin: 24px auto 0;
+            text-align: center;
+
+            button {
+                width: 24px;
+                height: 24px;
+                border-radius: 4px;
+                background-color: oklch(98% 0 0);
+                vertical-align: middle;
+                border: 1px solid color-mix(in srgb, oklch(21% .006 285.885) 20%, #0000);
+                justify-content: center;
+                align-items: center;
+                padding-left: .5em;
+                padding-right: .5em;
+                display: inline-flex;
+                font-size: 16px;
+
+                &:active {
+                    transform: scale(.95);
+                }
+            }
+
+            .horizontal {
+                display: flex;
+                justify-content: center;
+            }
+        }
+    </style>
 </head>
 
 <body>
     <canvas id="canvas" width="400" height="400"></canvas>
+    <pre id="info"></pre>
+    <div class="operation">
+        <div>
+            <button type="button" id="up-btn">⭡</button>
+        </div>
+        <div class="horizontal">
+            <button type="button" id="left-btn">⭠</button>
+            <button type="button" id="rotate-right-btn">⟳</button>
+            <button type="button" id="right-btn">⭢</button>
+        </div>
+        <div>
+            <button type="button" id="down-btn">⭣</button>
+        </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
 </body>
 
