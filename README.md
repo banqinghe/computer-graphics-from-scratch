@@ -7,12 +7,12 @@
 
 - [x] Basic Raytracing
 - [x] Light
-- [ ] Shadows and Reflections
-- [ ] Extending the Raytracer
+- [x] Shadows and Reflections
+- [x] Extending the Raytracer
 
 **Part II: Rasterization**
 
-- [ ] Lines
+- [x] Lines
 - [ ] Filled Triangles
 - [ ] Shaded Triangles
 - [ ] Perspective Projection
