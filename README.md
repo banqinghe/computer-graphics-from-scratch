@@ -13,7 +13,7 @@
 **Part II: Rasterization**
 
 - [x] Lines
-- [ ] Filled Triangles
+- [x] Filled Triangles
 - [ ] Shaded Triangles
 - [ ] Perspective Projection
 - [ ] Describing and Rendering a Scene

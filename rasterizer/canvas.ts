@@ -13,6 +13,10 @@ export function updateCanvas() {
 export function putPixel(x: number, y: number, color: vec3) {
     x = Math.round(x);
     y = Math.round(y);
+    // 边界检查，防止回卷 (wrapping) 现象
+    if (x < 0 || x >= canvasWidth || y < 0 || y >= canvasHeight) {
+        return;
+    }
     const index = (y * canvasWidth + x) * 4;
     imageData.data[index] = color[0];
     imageData.data[index + 1] = color[1];
